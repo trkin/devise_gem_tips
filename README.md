@@ -1,6 +1,9 @@
-# Deise gem basics
+# Devise gem basics
 
 Devise gem https://github.com/heartcombo/devise
+
+## Install
+
 Start with
 
 ```
@@ -59,12 +62,41 @@ Generate sample pages
 
 ```
 rails g controller pages index
-rails g scaffold articles title body:textk
-sed -i "" -e '/root/s\
-  root "articles#index"
+rails g scaffold articles title body:text
+rails db:migrate
+sed -i "" -e '/root/c\
+  root "pages#index"
 ' config/routes.rb 
-
-
 git add . && git commit -m "Add controller pages and scaffold articles"
 ```
 
+Now we will add authentication for articles pages
+
+## Protect using ApplicationUserController
+
+To keep it simple, I protect whole controller instead of single methods, so I
+create
+```
+# app/controllers/application_user_controller.rb
+class ApplicationUserController < ApplicationController
+  before_action :authenticate_user!
+end
+```
+
+and make ArticlesController inherits from it
+`class ArticlesController < ApplicationUserController`.
+
+## Test
+
+Test authenticate_user
+
+```
+# test/test_helper.rb.rb
+  # devise method: sign_in user
+  include Devise::Test::IntegrationHelpers
+```
+and sign in user in tests
+```
+# test/controllers/articles_controller_test.rb
+    sign_in users(:user)
+```
