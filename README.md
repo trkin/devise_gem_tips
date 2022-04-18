@@ -24,3 +24,10 @@ last_migration
 rake db:migrate
 git add . && git commit -m "rails g devise user"
 ```
+
+Than you need to config mailer, add flash, and generate views
+
+```
+rails g devise:views
+git add . && git commit -m "rails g devise:views"
+```
