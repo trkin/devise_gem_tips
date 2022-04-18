@@ -1,24 +1,26 @@
-# README
+# Deise gem basics
 
-This README would normally document whatever steps are necessary to get the
-application up and running.
+Devise gem https://github.com/heartcombo/devise
+Start with
 
-Things you may want to cover:
+```
+cat >> Gemfile <<HERE_DOC
 
-* Ruby version
+# user authentication
+gem 'devise'
+HERE_DOC
 
-* System dependencies
+bundle
+rails generate devise:install
+git add . && git commit -m "rails g devise:install"
 
-* Configuration
-
-* Database creation
-
-* Database initialization
-
-* How to run the test suite
-
-* Services (job queues, cache servers, search engines, etc.)
-
-* Deployment instructions
-
-* ...
+rails g devise User
+last_migration
+# add if you need:
+# t.string :name, null: false, default: ''
+# t.string :locale, null: false, default: ''
+# t.boolean :superadmin, null: false, default: false
+# uncomment Trackable and Confirmable and add_index
+rake db:migrate
+git add . && git commit -m "rails g devise user"
+```
