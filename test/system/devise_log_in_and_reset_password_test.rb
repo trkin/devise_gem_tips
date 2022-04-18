@@ -39,6 +39,8 @@ class DeviseLogInResetPasswordTest < ApplicationSystemTestCase
     fill_in 'Confirm new password', with: 'new_pass'
     click_on 'Change my password'
 
+    assert_notice_message "Your password has been changed successfully."
+
     user = User.find_by(email: user.email)
     assert user.valid_password? 'new_pass'
   end
@@ -49,16 +51,15 @@ class DeviseLogInResetPasswordTest < ApplicationSystemTestCase
 
     visit root_path
     click_on 'Login'
-    click_on 'Forgot Password?'
     click_on "Didn't receive confirmation instructions?"
-    fill_in 'Enter Email', with: user.email
+    fill_in 'Email', with: user.email
     click_on 'Resend confirmation instructions'
 
     assert_notice_message 'You will receive an email with instructions for how to confirm your email address in a few minutes.'
     mail = ActionMailer::Base.deliveries.last
     assert_equal [user.email], mail.to
     confirm_link = mail.body.encoded.match(
-      /(http:\S*)".*>Confirm My Account/
+      /(http:\S*)".*>Confirm my account/
     )[1]
     visit confirm_link
 

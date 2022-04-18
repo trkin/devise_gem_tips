@@ -28,6 +28,7 @@ last_migration
 # t.string :locale, null: false, default: ''
 # t.boolean :superadmin, null: false, default: false
 # uncomment Trackable and Confirmable and add_index
+vi app/models/user.rb # add :confirmable, :trackable
 rake db:migrate
 git add . && git commit -m "rails g devise user"
 ```
@@ -53,6 +54,7 @@ sed -i "" -e '/default from/c\
 sed -i "" -e '/yield/i\
     <p data-test="notice" class="notice"><%= notice %></p>\
     <p data-test="alert" class="alert"><%= alert %></p>\
+    <%= link_to "Root", root_path %>\
     <% if current_user.present? %>\
       <span data-test="current-user-email""><%= current_user.email %></span<>\
       <%= button_to "Sign out", destroy_user_session_path, method: :delete, form_class: "d-inline" %>\
@@ -156,6 +158,8 @@ end
   config.warden do |manager|
     manager.failure_app = TurboFailureApp
   end
+  # also do not forget from above error
+  config.navigational_formats = ['*/*', :html, :turbo_stream]
 ```
 
 and
