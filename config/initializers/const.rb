@@ -1,4 +1,4 @@
-class Const # rubocop:todo Metrics/ClassLength
+module Const # rubocop:todo Metrics/ClassLength
   def self.common # rubocop:todo Metrics/MethodLength
     hash_or_error_if_key_does_not_exists(
       name: 'MyApp',

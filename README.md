@@ -7,13 +7,7 @@ Devise gem https://github.com/heartcombo/devise
 Start with
 
 ```
-cat >> Gemfile <<HERE_DOC
-
-# user authentication
-gem 'devise'
-HERE_DOC
-
-bundle
+bundle add devise
 rails generate devise:install
 git add . && git commit -m "rails g devise:install"
 ```
@@ -23,10 +17,10 @@ If you do not have users table you can generate with
 ```
 rails g devise User
 last_migration
-# add if you need:
+# add admin field since we will use in as sign_in_development
 # t.string :name, null: false, default: ''
 # t.string :locale, null: false, default: ''
-# t.boolean :superadmin, null: false, default: false
+# t.boolean :admin, null: false, default: false
 # uncomment Trackable and Confirmable and add_index
 vi app/models/user.rb # add :confirmable, :trackable
 rake db:migrate
@@ -49,7 +43,7 @@ sed -i "" -e '/mailer_sender/c\
 
 sed -i "" -e '/default from/c\
   default from: Rails.application.credentials.mailer_sender
-' app/mailers/application_mailer.rb 
+' app/mailers/application_mailer.rb
 
 sed -i "" -e '/yield/i\
     <p data-test="notice" class="notice"><%= notice %></p>\
@@ -64,7 +58,7 @@ sed -i "" -e '/yield/i\
 ' app/views/layouts/application.html.erb 
 
 sed -i "" -e '/^  end/i\
-    config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
+    config.action_mailer.default_url_options = {host: "localhost", port: 3000}
 ' config/application.rb
 
 git add . && git commit -m "Set mailer_sender and add flash"
@@ -76,7 +70,7 @@ Generate sample pages
 rails g controller pages index
 rails g scaffold articles title body:text
 rails db:migrate
-sed -i "" -e '/root/c\
+sed -i "" -e '/root..article.index/c\
   root "pages#index"
 ' config/routes.rb 
 git add . && git commit -m "Add controller pages and scaffold articles"
@@ -98,24 +92,6 @@ end
 and make ArticlesController inherits from it
 `class ArticlesController < ApplicationUserController`.
 
-## Test
-
-Test authenticate_user
-
-```
-# test/test_helper.rb.rb
-  # devise method: sign_in user
-  include Devise::Test::IntegrationHelpers
-```
-and sign in user in tests (both in integration and system tests)
-```
-# test/controllers/articles_controller_test.rb
-    sign_in users(:user)
-```
-
-For system tests, there is one for log in and reset password, and another for
-register proccess (because register is updated more often).
-
 ## Turbo and Devise
 
 When you are using Rails 7 there is an error after user is signed up
@@ -124,9 +100,10 @@ NoMethodError in Devise::RegistrationsController#create
 undefined method `user_url' for #<Devise::RegistrationsController:0x0000000001bd00>
 ```
 
-which you can solve with https://github.com/heartcombo/devise/issues/5439#issuecomment-997292547
+which you can solve with (no need to add now since we will add in below step)
 ```
 # config/initializers/devise.rb
+# https://github.com/heartcombo/devise/issues/5439#issuecomment-997292547
 config.navigational_formats = ['*/*', :html, :turbo_stream]
 ```
 
@@ -152,8 +129,8 @@ Rails.application.reloader.to_prepare do
   end
 end
 
+Devise.setup do |config|
 ...
-
   config.parent_controller = 'TurboDeviseController'
   config.warden do |manager|
     manager.failure_app = TurboFailureApp
@@ -162,9 +139,10 @@ end
   config.navigational_formats = ['*/*', :html, :turbo_stream]
 ```
 
-and
+and we need this controller class (it can not be defined inside initializers
+since ApplicationController does not exists yet there)
 ```
-# app/controllers/turbo_devise_controller.rb
+cat > app/controllers/turbo_devise_controller.rb << 'HERE_DOC'
 class TurboDeviseController < ApplicationController
   class Responder < ActionController::Responder
     def to_turbo_stream
@@ -183,5 +161,74 @@ class TurboDeviseController < ApplicationController
   self.responder = Responder
   respond_to :html, :turbo_stream
 end
+HERE_DOC
 ```
+and commit
+```
+git add . && git commit -am"Add TurboDeviseController"
+```
+
+## Sign in on development helper
+
+Put links to be able to sign in by GET request on staging and local
+
+```
+# app/views/devise/sessions/new.html.erb
+<% if Rails.env.development? || Rails.application.secrets.is_staging %>
+  <small>
+    Only on development or staging
+    <dl>
+      <dt>admin</dt>
+      <dd>
+        <% User.where(admin: true).order(:created_at).limit(5).each do |user| %>
+          <%= link_to user.email, sign_in_development_path(user) %>
+        <% end %>
+      </dd>
+      <dt>non admin</dt>
+      <dd>
+        <% User.where(admin: false).order(:created_at).limit(10).each do |user| %>
+          <%= link_to user.email, sign_in_development_path(user) %>
+        <% end %>
+      </dd>
+    </dl>
+  </small>
+<% end %>
+```
+and configuration
+```
+# app/controllers/pages_controller.rb
+class PagesController < ApplicationController
+  def sign_in_development
+    return unless Rails.env.development? || Rails.application.secrets.is_staging
+
+    user = User.find params[:id]
+    sign_in :user, user, bypass: true
+    redirect_to params[:redirect_to] || root_path
+  end
+end
+
+# config/routes.rb
+  get 'sign-in-development/:id', to: 'pages#sign_in_development', as: :sign_in_development
+
+# commit
+git add . && git commit -am"Add sign_in_development_path"
+```
+
+## Test
+
+Test authenticate_user
+
+```
+# test/test_helper.rb.rb
+  # devise method: sign_in user
+  include Devise::Test::IntegrationHelpers
+```
+and sign in user in tests (both in integration and system tests)
+```
+# test/controllers/articles_controller_test.rb
+    sign_in users(:user)
+```
+
+For system tests, there is one for log in and reset password, and another for
+register proccess (because register is updated more often).
 
