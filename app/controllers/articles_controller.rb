@@ -1,6 +1,8 @@
 class ArticlesController < ApplicationUserController
   before_action :set_article, only: %i[ show edit update destroy ]
 
+  skip_before_action :verify_authenticity_token, if: -> { request.format.json? }
+
   # GET /articles or /articles.json
   def index
     @articles = Article.all

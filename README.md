@@ -4,6 +4,15 @@ Devise gem https://github.com/heartcombo/devise
 
 ## Install
 
+You can type commands manually or use template.rb
+```
+# for new apps
+rails new blog -m https://example.com/template.rb
+
+# for existing apps
+rails app:template LOCATION=./template.rb
+```
+
 Start with
 
 ```
@@ -15,7 +24,7 @@ git add . && git commit -m "rails g devise:install"
 If you do not have users table you can generate with
 
 ```
-rails g devise User
+rails g devise user
 last_migration
 # add admin field since we will use in as sign_in_development
 # t.string :name, null: false, default: ''
@@ -23,7 +32,7 @@ last_migration
 # t.boolean :admin, null: false, default: false
 # uncomment Trackable and Confirmable and add_index
 vi app/models/user.rb # add :confirmable, :trackable
-rake db:migrate
+rails db:migrate
 git add . && git commit -m "rails g devise user"
 ```
 
@@ -55,7 +64,7 @@ sed -i "" -e '/yield/i\
     <% else %>\
       <%= link_to "Login", new_user_session_path %>\
     <% end %>\
-' app/views/layouts/application.html.erb 
+' app/views/layouts/application.html.erb
 
 sed -i "" -e '/^  end/i\
     config.action_mailer.default_url_options = {host: "localhost", port: 3000}
@@ -72,7 +81,7 @@ rails g scaffold articles title body:text
 rails db:migrate
 sed -i "" -e '/root..article.index/c\
   root "pages#index"
-' config/routes.rb 
+' config/routes.rb
 git add . && git commit -m "Add controller pages and scaffold articles"
 ```
 
@@ -174,9 +183,9 @@ Put links to be able to sign in by GET request on staging and local
 
 ```
 # app/views/devise/sessions/new.html.erb
-<% if Rails.env.development? || Rails.application.secrets.is_staging %>
+<% if Rails.env.development? %>
   <small>
-    Only on development or staging
+    Only on development
     <dl>
       <dt>admin</dt>
       <dd>
@@ -199,7 +208,7 @@ and configuration
 # app/controllers/pages_controller.rb
 class PagesController < ApplicationController
   def sign_in_development
-    return unless Rails.env.development? || Rails.application.secrets.is_staging
+    return unless Rails.env.development?
 
     user = User.find params[:id]
     sign_in :user, user, bypass: true
@@ -213,6 +222,146 @@ end
 # commit
 git add . && git commit -am"Add sign_in_development_path"
 ```
+
+# API JWT Auth
+
+For API Auth we will use https://github.com/waiting-for-dev/devise-jwt
+```
+bundle add devise-jwt
+rails secret
+rails credentials:edit
+# you need to to this for all envs: rails credentials:edit -e development
+# add secret key for jwt
+devise_jwt_secret_key: 123ASD
+```
+configure
+```
+# config/initializers/devise.rb
+  config.jwt do |jwt|
+    jwt.secret = Rails.application.credentials.devise_jwt_secret_key!
+    jwt.dispatch_requests = [ ['GET', %r{^/show_jwt$}] ]
+  end
+```
+
+and add to User
+
+```
+# app/models/user.rb
+  devise :database_authenticatable,
+    :jwt_authenticatable, jwt_revocation_strategy: JwtDenylist
+```
+
+and create a migration and model
+```
+rails g migration CreateJwtDenylist
+```
+```
+# db/migrate/20220601114003_create_jwt_denylist.rb
+class CreateJwtDenylist < ActiveRecord::Migration[7.0]
+  def change
+    create_table :jwt_denylist do |t|
+      t.string :jti, null: false
+      t.datetime :exp, null: false
+      t.timestamps
+    end
+    add_index :jwt_denylist, :jti
+  end
+end
+```
+```
+cat > app/models/jwt_denylist.rb << 'HERE_DOC'
+class JwtDenylist < ApplicationRecord
+  include Devise::JWT::RevocationStrategies::Denylist
+
+  self.table_name = 'jwt_denylist'
+end
+HERE_DOC
+```
+
+When you make a POST, and you get error like
+```
+ActionController::InvalidAuthenticityToken (Can't verify CSRF token authenticity.):
+```
+you can skip verify csrf token
+```
+# app/controllers/articles_controller.rb
+
+  skip_before_action :verify_authenticity_token, if: -> { request.format.json? }
+```
+
+Or you can enable cors (not sure why this helps)
+
+```
+bundle add rack-cors
+```
+and create a file
+```
+cat > config/initializers/cors.rb << 'HERE_DOC'
+Rails.application.config.middleware.insert_before 0, Rack::Cors do
+  allow do
+    origins '*'
+
+    resource '*',
+      headers: :any,
+      methods: [:get, :post, :put, :patch, :delete, :options, :head]
+  end
+end
+HERE_DOC
+```
+
+Client can obtain JWT token in two ways, using html and using API.
+To show Bearer jwt token on web you can use
+```
+# config/routes.rb
+  get "show_jwt", controller: "application_user"
+```
+and
+```
+# app/controllers/application_user_controller.rb
+  def show_jwt
+    render json: { bearer_token: request.env['warden-jwt_auth.token'] }
+  end
+```
+
+When user is logged in and navigate to `/show_jwt` response is
+```
+{
+  bearer_token: "asd123"
+}
+```
+
+Use existing controllers that are protected with
+```
+  before_action :authenticate_user!
+```
+
+Try in test
+```
+require 'devise/jwt/test_helpers'
+
+user = User.last
+headers = { 'Accept' => 'application/json', 'Content-Type' => 'application/json' }
+auth_headers = Devise::JWT::TestHelpers.auth_headers(headers, user)
+# {"Accept"=>"application/json",
+# "Content-Type"=>"application/json",
+# "Authorization"=>"Bearer eyJhbGciO..."}
+get "articles", headers: auth_headers
+```
+for example in curl
+```
+export TOKEN=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI3YjgzNzUzMy0yN2JlLTRjZDQtYjNiMi1jMjY3M2UxZjQ1NjgiLCJzY3AiOiJ1c2VyIiwiYXVkIjpudWxsLCJpYXQiOjE2NTQxNTU1MDUsImV4cCI6MTY1NDE1OTEwNSwianRpIjoiOWY1OWUzODEtYzEwNy00YWMwLWI0YjMtMTQ5YjU3ODg5MzFmIn0.hB367AnlJhIaNjXAkSwWjszWYg8uRqDwtBgynSo36SQ
+
+# list articles
+curl -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" -H "Content-Type: application/json" localhost:3000/articles
+
+# create token
+curl -XPOST -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" -H "Content-Type: application/json" -d '{ "article": { "title": "my-title", "body": "my-body" } }' localhost:3000/articles
+
+# delete token
+curl -XDELETE -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" -H "Content-Type: application/json" localhost:3000/articles/1
+```
+
+TODO: enable sign in and sign out api
 
 ## Test
 
