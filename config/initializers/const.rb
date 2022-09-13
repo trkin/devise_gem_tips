@@ -1,11 +1,19 @@
-module Const # rubocop:todo Metrics/ClassLength
+# https://github.com/duleorlovic/rails_helpers_and_const/blob/main/config/initializers/const.rb
+
+# For Rails::Server::Options.new.parse!(ARGV)[:Port] to work in c and sidekiq
+require "rails/commands" # we need this to sidekiq
+require "rails/commands/server/server_command" # we need this for rails c or rails g migration
+# there is an exception: uninitialized constant Rails::Server (NameError)
+# I tried with Rack::Server.new.options[:Port] but it always returns 9292
+
+module Const
   def self.common # rubocop:todo Metrics/MethodLength
     hash_or_error_if_key_does_not_exists(
       name: 'MyApp',
-      # short_name is also used as queue_name_prefix and in config/sidekiq.yml
-      short_name: "myapp",
-      # default_url is required for links in email body or in links in
-      # controller when url host is not available (for example rails console)
+      # short_name is also use in config/sidekiq.yml and config/application.rb
+      short_name: 'myapp',
+      # default_url is required for links in email body or in links in controller
+      # when url host is not available (for example rails console)
       # look below how default_url is used
       default_url: {
         host: if Rails.env.production?
@@ -15,7 +23,7 @@ module Const # rubocop:todo Metrics/ClassLength
               else
                 '127.0.0.1'
               end,
-        port: (Rails.env.development? ? Rack::Server.new.options[:Port] : nil),
+        port: (Rails.env.development? ? Rails::Server::Options.new.parse!(ARGV)[:Port] : nil),
         protocol: Rails.env.production? ? 'https' : 'http',
       },
     )

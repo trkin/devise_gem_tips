@@ -4,16 +4,16 @@ Devise gem https://github.com/heartcombo/devise
 
 ## Install
 
-You can type commands manually or use template.rb
+You can use template.rb
 ```
 # for new apps
-rails new blog -m https://example.com/template.rb
+rails new blog -m https://raw.githubusercontent.com/duleorlovic/devise_gem_tips/main/template.rb
 
 # for existing apps
-rails app:template LOCATION=./template.rb
+rails app:template LOCATION=https://raw.githubusercontent.com/duleorlovic/devise_gem_tips/main/template.rb
 ```
 
-Start with
+or type commands manually. Start with
 
 ```
 bundle add devise
@@ -208,7 +208,7 @@ and configuration
 # app/controllers/pages_controller.rb
 class PagesController < ApplicationController
   def sign_in_development
-    return unless Rails.env.development?
+    render plain: "only_development" and return unless Rails.env.development?
 
     user = User.find params[:id]
     sign_in :user, user, bypass: true
@@ -362,6 +362,18 @@ curl -XDELETE -H "Authorization: Bearer $TOKEN" -H "Accept: application/json" -H
 ```
 
 TODO: enable sign in and sign out api
+TODO: test confirmation
+
+require 'test_helper'
+
+class MyConfirmationsControllerTest < ActionDispatch::IntegrationTest
+  test 'sign_in after confirmation' do
+    user = users(:unconfirmed)
+    get user_confirmation_path(confirmation_token: user.confirmation_token)
+    follow_redirect!
+    assert_select "h4", "Basic Information"
+  end
+end
 
 ## Test
 
