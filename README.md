@@ -13,7 +13,9 @@ rails new blog -m https://raw.githubusercontent.com/duleorlovic/devise_gem_tips/
 rails app:template LOCATION=https://raw.githubusercontent.com/duleorlovic/devise_gem_tips/main/template.rb
 ```
 
-or type commands manually. Start with
+or manually copy commands from the template
+
+or read those explanations. Start with
 
 ```
 bundle add devise
@@ -374,6 +376,10 @@ class MyConfirmationsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h4", "Basic Information"
   end
 end
+
+# Enable user log in with mobile phone
+
+TODO:
 
 ## Test
 

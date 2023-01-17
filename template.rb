@@ -1,11 +1,16 @@
+# https://github.com/duleorlovic/devise_gem_tips/blob/main/template.rb
 # rubocop:disable Layout/HeredocIndentation
-run %( git add . && git commit -m "rails new #{`echo ${PWD##*/}`}" )
+# Initial commit is not needed when using template on existing project
+# run %( git add . && git commit -m "rails new #{`echo ${PWD##*/}`}" )
 
-run <<BASH
+run(<<BASH) or exit 1
+set -e # Any commands which fail will cause the shell script to exit immediately
+set -x # Show command being executed
+
 bundle add devise
+git add . && git commit -m "bundle add devise"
 rails generate devise:install
 git add . && git commit -m "rails g devise:install"
-git add . && git commit -am"bundle add devise"
 
 rails g devise user
 rails db:migrate
