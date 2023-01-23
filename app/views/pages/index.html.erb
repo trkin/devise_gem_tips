@@ -1,4 +1,7 @@
 <h1>Pages#index</h1>
 <p>Find me in app/views/pages/index.html.erb</p>
+<div data-controller="hello">
+  hello controller
+</div>
 <%= link_to "Articles", articles_path %>
 <%=   request.env['warden-jwt_auth.token'] %>
