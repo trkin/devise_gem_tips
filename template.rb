@@ -19,7 +19,7 @@ BASH
 # Generate default user model if you do not already have users table
 run <<BASH
 rails g devise user
-rails db:migrate
+rails db:create db:migrate
 # edit last_migration to add name, locale, admin field
 # admin can be used in as sign_in_development
 # t.string :name, null: false, default: ''
@@ -32,6 +32,8 @@ BASH
 
 # Generate views, set mailer sender in credentials and add flash to layout
 run <<'BASH'
+set -e -x # Any commands which fail will cause the shell script to exit immediately
+
 rails g devise:views
 git add . && git commit -m "rails g devise:views"
 
