@@ -56,6 +56,20 @@ and `template-for-api.rb`
 rails app:template LOCATION=~/web-tips/devise_gem_tips/template-for-api.rb
 ```
 
+Terminology:
+* header: this can be used in native requests from mobile app for example
+  `Authorization: Bearer my-jwt-token` so devise can determine current user.
+* cookie: this is used inside browsers and also mobile apps can set in webview
+  `CookieManager.getInstance().setCookie(BASE_URL, "oauth_token=${authToken}");`
+  it has a limit of 4KB and it is just a plain string that server can read.
+  Headers are used to set a cookie for example `curl -H "cookie:
+  _gofordesi_webapp_session=asdasdasd"`
+
+Note that inside mobile apps we need both authentications: for API and for
+Webview.
+
+Steps to enable authentication with jwt:
+
 * Install devise-jwt
 * Add devise_jwt_secret_key to credentials
 * Configure devise config and User model
