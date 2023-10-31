@@ -1,7 +1,7 @@
-# https://github.com/duleorlovic/devise_gem_tips/blob/main/template.rb
+# https://github.com/trkin/devise_gem_tips/blob/main/template.rb
 # rubocop:disable Layout/HeredocIndentation
 
-run(<<BASH) or exit 1
+run(<<HERE_DOC) or exit 1
 set -e # Any commands which fail will cause the shell script to exit immediately
 set -x # Show command being executed
 
@@ -10,14 +10,18 @@ set -x # Show command being executed
 git add . && git commit -m "rails new #{`echo ${PWD##*/}`}"
 
 bundle add devise
-git add . && git commit -m "bundle add devise"
+rails g devise:install
+rails g devise:views
 
-rails generate devise:install
-git add . && git commit -m "rails g devise:install"
-BASH
+git add . && git commit -m "Add devise gem
+
+bundle add devise
+rails g devise:install
+rails g devise:views"
+HERE_DOC
 
 # Generate default user model if you do not already have users table
-run <<BASH
+run <<HERE_DOC
 rails g devise user
 rails db:create db:migrate
 # edit last_migration to add name, locale, admin field
@@ -28,23 +32,23 @@ rails db:create db:migrate
 # uncomment Trackable and Confirmable and add_index
 # vi app/models/user.rb # add :confirmable, :trackable
 git add . && git commit -m "rails g devise user"
-BASH
+HERE_DOC
+
+# Use Const helper
+run <<'HERE_DOC'
+curl https://raw.githubusercontent.com/duleorlovic/rails_helpers_and_const/main/config/initializers/const.rb > config/initializers/const.rb
+HERE_DOC
 
 # Generate views, set mailer sender in credentials and add flash to layout
-run <<'BASH'
+run <<'HERE_DOC'
 set -e -x # Any commands which fail will cause the shell script to exit immediately
 
-rails g devise:views
-git add . && git commit -m "rails g devise:views"
-
-EDITOR='echo "mailer_sender: My Company <support@example.com>" >> ' rails credentials:edit
-
 sed -i "" -e '/mailer_sender/c\
-  config.mailer_sender = Rails.application.credentials.mailer_sender
+  config.mailer_sender = Const.common[:mailer_sender]
 ' config/initializers/devise.rb
 
 sed -i "" -e '/default from/c\
-  default from: Rails.application.credentials.mailer_sender
+  default from: Const.common[:mailer_sender]
 ' app/mailers/application_mailer.rb
 
 sed -i "" -e '/yield/i\
@@ -53,25 +57,18 @@ sed -i "" -e '/yield/i\
     <%= link_to "Root", root_path %>\
     <%= link_to "Articles", articles_path %>\
     <% if current_user.present? %>\
-      <span data-test="current-user-email""><%= current_user.email %></span<>\
+      <span data-test="current-user-email"><%= current_user.email %></span>\
       <%= button_to "Sign out", destroy_user_session_path, method: :delete, form_class: "d-inline" %>\
     <% else %>\
       <%= link_to "Login", new_user_session_path %>\
     <% end %>\
 ' app/views/layouts/application.html.erb
 
-sed -i "" -e '/^  end/i\
-    config.action_mailer.default_url_options = {host: "localhost", port: 3000}
-' config/application.rb
-
 git add . && git commit -m "Set mailer_sender and add flash"
-BASH
-
-# Use Const helper
-get "https://raw.githubusercontent.com/duleorlovic/rails_helpers_and_const/main/config/initializers/const.rb", "config/initializers/const.rb"
+HERE_DOC
 
 # Generate sample pages and protect ArticlesController using ApplicationUserController
-run <<'BASH'
+run <<'HERE_DOC_RUN'
 rails g controller pages index
 rails g scaffold articles title body:text
 rails db:migrate
@@ -80,9 +77,10 @@ sed -i "" -e '/root "articles#index"/c\
 ' config/routes.rb
 cat >> app/views/pages/index.html.erb << HERE_DOC
 <div data-controller="hello">
-  hello controller should be replaces with "Hello World!"
+  hello controller should be replaced with "Hello World!"
 </div>
 HERE_DOC
+
 git add . && git commit -m "Add controller pages and scaffold articles"
 
 
@@ -95,7 +93,8 @@ HERE_DOC
 sed -i "" -e '/class ArticlesController/c\
   class ArticlesController < ApplicationUserController
 ' app/controllers/articles_controller.rb
-BASH
+HERE_DOC
+HERE_DOC_RUN
 
 # Sign in development helper
 insert_into_file 'app/views/devise/sessions/new.html.erb', <<HERE_DOC, before: '<%= form_for'
@@ -124,32 +123,50 @@ insert_into_file 'app/controllers/pages_controller.rb', <<HERE_DOC, before: /^en
   end
 HERE_DOC
 
-run <<BASH
-sed -i "" -e '/get .pages.index/a\\
+run <<HERE_DOC
+sed -i "" -e '/get .pages.index/a\
   get "sign-in-development/:id", to: "pages#sign_in_development", as: :sign_in_development
 ' config/routes.rb
 
 git add . && git commit -am"Add sign_in_development_path"
-BASH
+HERE_DOC
 
 # Add tests
-file 'test/controllers/pages_controller_test.rb', <<-RUBY, force: true
+run <<HERE_DOC_RUN
+
+cat > test/controllers/pages_controller_test.rb <<'HERE_DOC'
 require "test_helper"
 
 class PagesControllerTest < ActionDispatch::IntegrationTest
   test "should get index" do
     get root_path
     assert_response :success
+    assert_select "[data-test-current-user-email]", count: 0
   end
 
   test "sign_in_development" do
     get sign_in_development_path users(:user).id
     assert_equal "only_development", response.body
   end
-end
-RUBY
 
-create_file 'test/controllers/application_user_controller_test.rb', <<-RUBY
+  test "devise sign_in method" do
+    user = users(:user)
+    sign_in user
+    get root_path
+    assert_select "[data-test='current-user-email']", user.email
+  end
+
+  test "log in" do
+    user = users(:user)
+    post user_session_path user: { email: user.email, password: "password" }
+    follow_redirect!
+    assert_notice_message "Signed in successfully."
+    assert_current_user user
+  end
+end
+HERE_DOC
+
+cat > test/controllers/application_user_controller_test.rb <<'HERE_DOC'
 require "test_helper"
 
 class ApplicationUserControllerTest < ActionDispatch::IntegrationTest
@@ -169,53 +186,62 @@ class ApplicationUserControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 end
-RUBY
+HERE_DOC
 
-insert_into_file 'test/controllers/articles_controller_test.rb', <<-RUBY, after: "articles(:one)\n"
+sed -i "" -e '/articles(:one)/i\
     sign_in users(:user)
-RUBY
+' test/controllers/articles_controller_test.rb
 
-insert_into_file 'test/system/articles_test.rb', <<-RUBY, after: "articles(:one)\n"
+sed -i "" -e '/articles(:one)/i\
     sign_in users(:user)
-RUBY
+' test/system/articles_test.rb
 
-empty_directory "test/a"
-create_file "test/a/assert_flash_message.rb", <<-RUBY
-# https://github.com/duleorlovic/minitest_rails/blob/main/test/a/assert_flash_message.rb
+mkdir test/a
+cat > test/a/assert_flash_message.rb << HERE_DOC
+# https://github.com/trkin/rails_minitest/blob/main/test/a/assert_flash_message.rb
 class ActionDispatch::IntegrationTest
-  # assert_flash_message
+  # assert_flash_message is not using data-test-alert="my message" but
+  # data-test="alert" because we want to see how text differs if test fails
   def assert_alert_message(text)
-    assert_select '[data-test=alert]', text
+    assert_select '[data-test="alert"]', text
   end
 
   def assert_notice_message(text)
-    assert_select '[data-test=notice]', text
+    assert_select '[data-test="notice"]', text
+  end
+
+  def assert_current_user(user)
+    assert_select '[data-test="current-user-email"]', user.email
   end
 end
 
 class ActionDispatch::SystemTestCase
   def assert_alert_message(text)
-    assert_selector '[data-test=alert]', text: text
+    assert_selector "[data-test='alert']", text: text
   end
 
   def assert_notice_message(text)
-    assert_selector '[data-test=notice]', text: text
+    assert_selector "[data-test='notice']", text: text
+  end
+
+  def assert_current_user(user)
+    assert_selector "[data-test='current-user-email']", text: user.email
   end
 end
-RUBY
+HERE_DOC
 
-insert_into_file "test/test_helper.rb", <<-RUBY, before: "class ActiveSupport"
-Dir[Rails.root.join('test/a/**/*.rb')].sort.each { |f| require f }
+sed -i "" -e '/class ActiveSupport/i\
+Dir[Rails.root.join("test/a/**/*.rb")].sort.each { |f| require f }\
 
-RUBY
+' test/test_helper.rb
 
-insert_into_file "test/test_helper.rb", <<-RUBY, before: "  # Add more helper methods"
-  # devise method: sign_in user
-  include Devise::Test::IntegrationHelpers
+sed -i "" -e '/  # Add more helper methods/i\
+  # devise method: sign_in user\
+  include Devise::Test::IntegrationHelpers\
 
-RUBY
+' test/test_helper.rb
 
-create_file "test/fixtures/users.yml", <<-RUBY, force: true
+cat > test/fixtures/users.yml <<'HERE_DOC'
 DEFAULTS: &DEFAULTS
   email: $LABEL@email.com
   encrypted_password: <%= User.new.send(:password_digest, 'password') %>
@@ -223,9 +249,9 @@ DEFAULTS: &DEFAULTS
 
 user:
   <<: *DEFAULTS
-RUBY
+HERE_DOC
 
-create_file "test/system/devise_log_in_and_reset_password_test.rb", <<-RUBY
+cat > "test/system/devise_log_in_and_reset_password_test.rb" <<HERE_DOC
 require 'application_system_test_case'
 
 class DeviseLogInResetPasswordTest < ApplicationSystemTestCase
@@ -244,7 +270,7 @@ class DeviseLogInResetPasswordTest < ApplicationSystemTestCase
     click_on 'Log in'
 
     assert_notice_message "Signed in successfully."
-    assert_selector '[data-test=current-user-email]', text: user.email
+    assert_current_user user
   end
 
   test 'forgot password with email' do
@@ -259,7 +285,7 @@ class DeviseLogInResetPasswordTest < ApplicationSystemTestCase
     mail = ActionMailer::Base.deliveries.last
     assert_equal [user.email], mail.to
     password_link = mail.body.encoded.match(
-      /(http:\\S*)".*>Change my password/
+      /(http:\S*)".*>Change my password/
     )[1]
     visit password_link
 
@@ -296,9 +322,9 @@ class DeviseLogInResetPasswordTest < ApplicationSystemTestCase
   #   assert user.confirmed_at
   # end
 end
-RUBY
+HERE_DOC
 
-create_file "test/system/sign_up_test.rb", <<-RUBY
+cat > "test/system/sign_up_test.rb" <<HERE_DOC
 require 'application_system_test_case'
 
 class SignUpTest < ApplicationSystemTestCase
@@ -315,95 +341,26 @@ class SignUpTest < ApplicationSystemTestCase
     assert user.valid_password? 'password'
   end
 end
-RUBY
+HERE_DOC
 
-create_file "test/application_system_test_case.rb", <<-RUBY, force: true
+cat > "test/application_system_test_case.rb" <<'HERE_DOC'
 require "test_helper"
 
 class ApplicationSystemTestCase < ActionDispatch::SystemTestCase
-  driven_by :selenium, using: :chrome, screen_size: [1400, 1400]
+  # driven_by :selenium, using: :chrome, screen_size: [1400, 1400]
+  driven_by :selenium, using: :headless_chrome, screen_size: [1400, 1400]
 
   # you can use bye bug, but it will stop rails so you can not navigate to other
   # pages or make another requests in chrome while testing
   def pause
     $stderr.write('Press CTRL+j or ENTER to continue') && $stdin.gets
   end
-
-end
-RUBY
-
-run <<BASH
-git add . && git commit -am"Add test files"
-BASH
-
-# Install importmap and stimulus to add javascript_importmap_tags to layout
-run <<BASH
-rails importmap:install
-rails stimulus:install
-rails turbo:install
-git add . && git commit -m "Rails importmap stimulus and turbo install"
-BASH
-
-# Turbo and devise
-# https://github.com/rails/thor/blob/master/lib/thor/actions/inject_into_file.rb
-#
-insert_into_file 'config/initializers/devise.rb', <<-RUBY, before: 'Devise.setup'
-# https://gorails.com/episodes/devise-hotwire-turbo
-
-Rails.application.reloader.to_prepare do
-  class TurboFailureApp < Devise::FailureApp # rubocop:todo Lint/ConstantDefinitionInBlock
-    def respond
-      if request_format == :turbo_stream
-        redirect
-      else
-        super
-      end
-    end
-
-    def skip_format?
-      %w[html turbo_stream */*].include? request_format.to_s
-    end
-  end
-end
-RUBY
-
-run <<'BASH'
-sed -i "" -e '/parent_controller/c\
-  config.parent_controller = "TurboDeviseController"
-' config/initializers/devise.rb
-
-sed -i "" -e '/config.warden do/i\
-  config.warden do |manager|\
-    manager.failure_app = TurboFailureApp\
-  end
-' config/initializers/devise.rb
-
-sed -i "" -e '/config.navigational_formats/a\
-  config.navigational_formats = ["*/*", :html, :turbo_stream]
-' config/initializers/devise.rb
-
-cat > app/controllers/turbo_devise_controller.rb << 'HERE_DOC'
-class TurboDeviseController < ApplicationController
-  class Responder < ActionController::Responder
-    def to_turbo_stream
-      controller.render(options.merge(formats: :html))
-    rescue ActionView::MissingTemplate => e
-      raise e if get?
-
-      if has_errors? && default_action
-        render rendering_options.merge(formats: :html, status: :unprocessable_entity)
-      else
-        redirect_to navigation_location
-      end
-    end
-  end
-
-  self.responder = Responder
-  respond_to :html, :turbo_stream
 end
 HERE_DOC
 
-git add . && git commit -am"Add TurboDeviseController"
-BASH
+git add . && git commit -am"Add test files for devise"
+HERE_DOC
+
+HERE_DOC_RUN
 
 # rubocop:enable Layout/HeredocIndentation

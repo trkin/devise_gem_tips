@@ -7,45 +7,31 @@ Devise gem https://github.com/heartcombo/devise
 You can use template.rb
 ```
 # for new apps
-rails new blog -m https://raw.githubusercontent.com/duleorlovic/devise_gem_tips/main/template.rb
+rails new blog -m https://raw.githubusercontent.com/trkin/devise_gem_tips/main/template.rb
 
 # for new apps but using local copy of template instead of github version
 rails new blog -m ~/web-tips/devise_gem_tips/template.rb
 
 # for existing apps
-rails app:template LOCATION=https://raw.githubusercontent.com/duleorlovic/devise_gem_tips/main/template.rb
+rails app:template LOCATION=https://raw.githubusercontent.com/trkin/devise_gem_tips/main/template.rb
 
 # for existing apps but using local copy of template instead of github version
 rails app:template LOCATION=~/web-tips/devise_gem_tips/template.rb
 ```
 
-You can read commands from the template and manually copy pase each one.
+You can read commands from the template and manually copy paste each one.
 In template you can see the blocks like:
 
-* Generate default user model if you do not already have users table
-* Generate views, set mailer sender in credentials and add flash to layout
+* Generate default user model if you do not already have users table. Note that
+  for uuid you first need to enable extension <https://github.com/trkin/rails_uuid_as_primary_key>
 * Use [Const](https://github.com/duleorlovic/rails_helpers_and_const/blob/main/config/initializers/const.rb) helper
+* Generate views, set mailer sender in credentials and add flash to layout
 * Generate sample pages and protect ArticlesController using ApplicationUserController
 * Sign in on development helper to sign in by GET request on staging and local
 * Add controller and sytem test for signup
-* Install importmap to add javascript_importmap_tags to layout and install
-  stimulus and turbo
-  You can notice that enabling turbo will break system sign up test
+* -Enable TurboDeviseController- Turbo now works with Devise
 
-  ```
-  rails test test/system/sign_up_test.rb:4
-
-  NoMethodError in Devise::RegistrationsController#create
-  undefined method `user_url' for #<Devise::RegistrationsController:0x0000000001bd00>
-  ```
-  so we need to patch devise
-
-* Turbo and devise adding `turbo_stream` navigation format to
-  `config/initializers/devise.rb`
-  Flash messages are not seen so we need to add two elements `TurboFailureApp`
-  and `TurboDeviseController`.
-
-and this is the last thing for which we use template.rb
+and that all we do in `template.rb`
 
 # API JWT Auth
 

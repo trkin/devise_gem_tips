@@ -1,4 +1,4 @@
-# https://github.com/duleorlovic/minitest_rails/blob/main/test/a/assert_flash_message.rb
+# https://github.com/trkin/rails_minitest/blob/main/test/a/assert_flash_message.rb
 class ActionDispatch::IntegrationTest
   # assert_flash_message
   def assert_alert_message(text)

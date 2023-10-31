@@ -1,4 +1,4 @@
-# https://github.com/duleorlovic/minitest_rails/blob/main/test/fixtures/users.yml
+# https://github.com/trkin/rails_minitest/blob/main/test/fixtures/users.yml
 DEFAULTS: &DEFAULTS
   email: $LABEL@email.com
   encrypted_password: <%= User.new.send(:password_digest, 'password') %>
@@ -6,3 +6,7 @@ DEFAULTS: &DEFAULTS
 
 user:
   <<: *DEFAULTS
+
+unconfirmed:
+  <<: *DEFAULTS
+  confirmed_at:
